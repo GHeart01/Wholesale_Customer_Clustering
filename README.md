@@ -30,15 +30,8 @@ In this data set we do not have a target variable, so my goal here is to gain in
 | Frozen             | Annual spending (m.u.) on frozen products                            | 
 | Detergents_Paper   | Annual spending (m.u.) on detergents and paper products              | 
 | Delicassen         | Annual spending (m.u.) on delicatessen products                      | 
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-df_data = pd.read_csv("Wholesale_customers_data.csv")
-df_data # head, tail, and shape
-df_data.describe().T
 
-df_data.info()
+
 Here I drop the catagorical columns Channel and Region as heatmap points generated from those rows wont make a lot of statistical sense.
 # Drop categorical columns (Region, Channel)
 numerical_data = df_data.drop(columns=["Channel", "Region"], errors='ignore')
