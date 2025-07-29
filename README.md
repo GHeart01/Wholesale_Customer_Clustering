@@ -1,7 +1,8 @@
 # Wholesale Customers (Clustering)
 Data Source: https://archive.ics.uci.edu/dataset/292/wholesale+customers
 Github Repo: https://github.com/GHeart01/Wholesale_Customer_Clustering
-Youtube Demo: 
+Youtube Demo: https://youtu.be/_jKNcg4YtCs
+
 ### Table of Contents
 - [Description](#Description)
 - [EDA](#Exploratory-Data-Analysis)
