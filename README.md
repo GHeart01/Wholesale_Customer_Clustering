@@ -270,31 +270,10 @@ print(f"Optimal clusters for Hierarchical: {optimal_k_hierarchical} (Score: {max
 ### Performance Analysis
 
 **Key Findings:**
-- Silhouette scores for both methods range between 0.3-0.6, indicating moderate to good cluster separation
+- Silhouette scores for both methods range between 0.3-0.6
 - Hierarchical clustering performs exceptionally well with 2 clusters
 - KMeans shows more consistent performance across different cluster numbers
-- Both methods achieve reasonable clustering quality (scores > 0.5 indicate good cluster separation)
-
-## Conclusion
-
-This analysis successfully identified distinct customer segments in the wholesale dataset using both KMeans and Hierarchical clustering approaches. 
-
-**Main Insights:**
-1. **Optimal Cluster Number**: Both methods suggest 2-3 clusters provide the best balance of interpretability and cluster quality
-2. **Algorithm Performance**: Hierarchical clustering excels with fewer clusters (k=2), while KMeans maintains consistent performance across various cluster numbers
-3. **Customer Segments**: The analysis reveals distinct purchasing patterns, with clear correlations between grocery, dairy, and household product spending
-4. **Data Characteristics**: Most customers exhibit low to moderate spending patterns, with notable outliers representing high-value customer segments
-
-**Recommendations:**
-- Use 2-3 clusters for business applications to maintain interpretability
-- Consider Hierarchical clustering for simpler segmentation strategies
-- Apply KMeans when exploring different numbers of customer segments
-- Focus marketing strategies on the identified correlations between product categories
-
-**Limitations:**
-- PCA dimensionality reduction may obscure some cluster characteristics
-- Silhouette scores, while reasonable, suggest room for improvement in cluster separation
-- Categorical variables (Channel, Region) were excluded but might provide additional segmentation insights
+- Both methods achieve reasonable clustering quality scores > 0.5 
 
 ## Citation
 
