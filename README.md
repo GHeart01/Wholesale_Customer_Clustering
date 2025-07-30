@@ -1,247 +1,303 @@
-# Wholesale Customers (Clustering)
-Data Source: https://archive.ics.uci.edu/dataset/292/wholesale+customers
-Github Repo: https://github.com/GHeart01/Wholesale_Customer_Clustering
-Youtube Demo: https://youtu.be/_jKNcg4YtCs
+# Wholesale Customers Clustering Analysis
 
-### Table of Contents
-- [Description](#Description)
-- [EDA](#Exploratory-Data-Analysis)
-- [Model KMeans](#KMeans-Clustering-Model)
-- [Model Hierarchical Clustering](#Hierarchical-Clustering-Model)
-- [Hypertuning](#Additional-Visualizations---Hypertuning)
-- [Results and Analysis](#Results-and-Analysis)
-- [Conclusion](#Conclusion)
-- [Citation](#Citation)
-### Description
+**Data Source:** [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/292/wholesale+customers)  
+**GitHub Repository:** https://github.com/GHeart01/Wholesale_Customer_Clustering  
+**YouTube Demo:** https://youtu.be/_jKNcg4YtCs
 
-This data from The UC Irving Machine Learning Repository
+## Table of Contents
+- [Description](#description)
+- [Exploratory Data Analysis](#exploratory-data-analysis)
+- [Data Preprocessing](#data-preprocessing)
+- [KMeans Clustering Model](#kmeans-clustering-model)
+- [Hierarchical Clustering Model](#hierarchical-clustering-model)
+- [Model Optimization](#model-optimization)
+- [Results and Analysis](#results-and-analysis)
+- [Conclusion](#conclusion)
+- [Citation](#citation)
 
-In this data set we do not have a target variable, so my goal here is to gain information on customer grouping (clustering) based on purchase behavior. I employ my own interpretation to determine the quality of the clustering using silouette score.
+## Description
 
-![Silhouette_Comparision](SilhouetteScore.png)
+This dataset from the UC Irvine Machine Learning Repository contains information about wholesale customers' annual spending across different product categories. Since there is no target variable, the goal is to identify customer segments through unsupervised clustering based on purchasing behavior patterns.
 
-### Exploratory Data Analysis
+The analysis employs both KMeans and Hierarchical clustering algorithms, with model quality assessed using silhouette scores.
+
+![Silhouette Score Comparison](SilhouetteScore.png)
+
+## Exploratory Data Analysis
+
+### Dataset Features
+
 | Feature            | Description                                                          |     
 |--------------------|----------------------------------------------------------------------|
-| Channel            | Channel - Horeca (Hotel/Restaurant/Cafe) or Retail channel           | 
-| Region             | Region - Lisbon, Oporto, or Other                                    |
-| Fresh              | Annual spending (m.u.) on fresh products                             | 
-| Milk               | Annual spending (m.u.) on milk products                              | 
-| Grocery            | Annual spending (m.u.) on grocery products                           | 
-| Frozen             | Annual spending (m.u.) on frozen products                            | 
-| Detergents_Paper   | Annual spending (m.u.) on detergents and paper products              | 
-| Delicassen         | Annual spending (m.u.) on delicatessen products                      | 
+| Channel            | Sales channel - Horeca (Hotel/Restaurant/Cafe) or Retail           | 
+| Region             | Geographic region - Lisbon, Oporto, or Other                       |
+| Fresh              | Annual spending (monetary units) on fresh products                  | 
+| Milk               | Annual spending (monetary units) on milk products                   | 
+| Grocery            | Annual spending (monetary units) on grocery products                | 
+| Frozen             | Annual spending (monetary units) on frozen products                 | 
+| Detergents_Paper   | Annual spending (monetary units) on detergents and paper products   | 
+| Delicassen         | Annual spending (monetary units) on delicatessen products           | 
 
+### Correlation Analysis
 
-Here I drop the catagorical columns Channel and Region as heatmap points generated from those rows wont make a lot of statistical sense.
-# Drop categorical columns (Region, Channel)
+The categorical columns (Channel and Region) are excluded from correlation analysis as they don't provide meaningful statistical insights for heatmap visualization.
+
+```python
+# Drop categorical columns for numerical analysis
 numerical_data = df_data.drop(columns=["Channel", "Region"], errors='ignore')
 
+# Generate correlation heatmap
 plt.figure(figsize=(10, 6))
 corr = numerical_data.corr()
 sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f')
 plt.title("Correlation Heatmap of Wholesale Customer Features")
 plt.show()
+```
 
-From this heat map there is very strong correlations between Grocery-Detergents_Paper, Milk-Grocery, Milk-Detergents_Paper. 
+**Key Findings from Correlation Analysis:**
+- Strong correlation between Grocery and Detergents_Paper spending
+- Notable correlation between Milk and Grocery purchases  
+- Significant correlation between Milk and Detergents_Paper spending
+
+These correlations suggest logical purchasing patterns where customers who buy more groceries also tend to purchase more household items and dairy products.
+
+### Distribution Analysis
+
+```python
+# Generate pairplot for feature relationships
 sns.pairplot(numerical_data)
 plt.suptitle("Pairplot of Wholesale Customer Features", y=1.02)
 plt.show()
-Looking at this pairplot table there may be some plots that demonstrate very high or very low spending in certain features. Here we can see that most points are towards the origin, meaning most customers spend very little on most wholesale items. However using the previous heatmap as a guide, I identify grocery-detergents_paper as displaying a clear positive correlation. The means that people who spend a lot on groceries also spend a lot on detergents_paper. I will interpret detergents_paper as cleaning supplies; tissues, toilet paper, paper towels. There is a similar correcltion as well with detergents paper and milk, and grocery-milk. The heatmap and pairplot both indicate the same correlations.
-#### Next Ill generate some mean, min, max stats for our data.
-summary_stats = numerical_data.agg(['mean', 'min', 'max']).T  # Transpose for plotting
+```
 
-# Plot
+The pairplot reveals that most data points cluster near the origin, indicating that the majority of customers have relatively low spending across most categories. However, there are clear outliers representing high-spending customers in specific categories.
+
+### Summary Statistics
+
+```python
+# Calculate and visualize summary statistics
+summary_stats = numerical_data.agg(['mean', 'min', 'max']).T
+
 summary_stats.plot(kind='bar', figsize=(12, 6))
 plt.title("Mean, Min, and Max for Each Feature")
 plt.ylabel("Value")
-plt.xticks(rotation=0)
+plt.xticks(rotation=45)
 plt.legend(title="Statistic")
 plt.tight_layout()
 plt.show()
-The is a rather simple graph for the spending catagories. The most valuable points of data here is that the min for each catagories is 0, or near it. As well as fresh wholesale items representing the highest average spending.
-**Apply df.drop to the models before execution**
-df_data = df_data.drop(columns=["Channel", "Region"], errors='ignore')
-### KMeans Clustering Model
-#preprocessing
+```
+
+**Key Observations:**
+- Minimum values for all categories are at or near zero
+- Fresh products show the highest average spending among all categories
+- High variance in spending patterns across different product categories
+
+## Data Preprocessing
+
+```python
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+import numpy as np
+
+# Set random seed for reproducibility
 np.random.seed(42)
-PCA(n_components=2, svd_solver='randomized')
-# Remove non-numeric (if present)
+
+# Remove categorical columns
 X = df_data.drop(columns=['Channel', 'Region'], errors='ignore')
 
-# Scale the features
+# Standardize features
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
+```
+
+Feature standardization is crucial for clustering algorithms as it ensures all variables contribute equally to distance calculations.
+
+## KMeans Clustering Model
+
+```python
 from sklearn.cluster import KMeans
 
-# Try clustering into 3 clusters
+# Apply KMeans clustering
 kmeans = KMeans(n_clusters=3, random_state=42)
 kmeans_labels = kmeans.fit_predict(X_scaled)
 
-# Add to original data
+# Add cluster labels to original dataset
 df_data['KMeans_Cluster'] = kmeans_labels
-### Hierarchical Clustering Model
+```
+
+## Hierarchical Clustering Model
+
+```python
 from sklearn.cluster import AgglomerativeClustering
 
-# Agglomerative clustering (Euclidean, Ward)
-hc = AgglomerativeClustering(n_clusters=3, metric='euclidean', linkage='ward')
-hc_labels = hc.fit_predict(X_scaled)
+# Apply Agglomerative (Hierarchical) clustering
+hierarchical = AgglomerativeClustering(n_clusters=3, metric='euclidean', linkage='ward')
+hc_labels = hierarchical.fit_predict(X_scaled)
 
-# Add to original data
+# Add cluster labels to original dataset
 df_data['Hierarchical_Cluster'] = hc_labels
-### Visualization
-# Reduce dimensions for visualization
+```
+
+### Cluster Visualization
+
+```python
+# Reduce dimensions for visualization using PCA
 pca = PCA(n_components=2)
 X_pca = pca.fit_transform(X_scaled)
 
-# Plot both clustering outputs side by side
+# Create side-by-side comparison plots
 fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
-# KMeans
-sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=kmeans_labels, palette='Set2', ax=axs[0])
+# KMeans visualization
+sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=kmeans_labels, 
+                palette='Set2', ax=axs[0])
 axs[0].set_title("KMeans Clusters (PCA Projection)")
+axs[0].set_xlabel("First Principal Component")
+axs[0].set_ylabel("Second Principal Component")
 
-# Hierarchical
-sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=hc_labels, palette='Set1', ax=axs[1])
+# Hierarchical clustering visualization
+sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=hc_labels, 
+                palette='Set1', ax=axs[1])
 axs[1].set_title("Hierarchical Clusters (PCA Projection)")
+axs[1].set_xlabel("First Principal Component")
+axs[1].set_ylabel("Second Principal Component")
 
 plt.tight_layout()
 plt.show()
-Here we see that borth KMeans and Hierarchical CLustering methods have 3 clusters (as specified), similarly to the visual inspection from our heatmap. There is clear overlap between the graphs, However the data separation differences between the two models is noticable; especially if you observe the point in the middle. Lets call the middle point, point M. Kmeans identifies the point M as part of cluster 1 where Hierarchial clustering identifies the point M and part of cluster 0.
+```
 
-The KMeans and Hierarchical clustering methods both show extreme similar graphs under 3 clusters.
-#### Additional Visualizations - Hypertuning
-#### Here I show the Elbow Method for KMeans clustering
-# k-means elbow
+Both clustering methods show similar overall patterns with three distinct clusters. However, there are notable differences in boundary assignments, particularly for data points in overlapping regions.
+
+## Model Optimization
+
+### Elbow Method for KMeans
+
+```python
+# Determine optimal number of clusters using elbow method
 inertia = []
 K_range = range(1, 11)
+
 for k in K_range:
-    km = KMeans(n_clusters=k, random_state=42)
-    km.fit(X_scaled)
-    inertia.append(km.inertia_)
+    kmeans_temp = KMeans(n_clusters=k, random_state=42)
+    kmeans_temp.fit(X_scaled)
+    inertia.append(kmeans_temp.inertia_)
 
 # Plot elbow curve
 plt.figure(figsize=(8, 5))
-plt.plot(K_range, inertia, marker='o')
+plt.plot(K_range, inertia, marker='o', linewidth=2, markersize=8)
 plt.title("Elbow Method for Optimal K (KMeans)")
 plt.xlabel("Number of Clusters")
-plt.ylabel("Inertia")
+plt.ylabel("Within-Cluster Sum of Squares (WCSS)")
 plt.xticks(K_range)
-plt.grid(True)
+plt.grid(True, alpha=0.3)
 plt.show()
-I have included this elbow graph for KMeans to demonstrate a that the optimal cluster number is where the slope changes less dramatically.
+```
 
-Here I believe that is somewhere where n_clusters >= 3
-#### Dendrogram plot for Hierarchical Clustering
+The elbow method suggests that the optimal number of clusters is around 3-4, where the rate of decrease in inertia begins to level off.
+
+### Dendrogram for Hierarchical Clustering
+
+```python
 import scipy.cluster.hierarchy as sch
-import matplotlib.pyplot as plt
 
+# Generate dendrogram
 plt.figure(figsize=(15, 8))
-dendrogram = sch.dendrogram(sch.linkage(X_scaled, method='ward'), 
-                           no_labels=True)  
-plt.title("Dendrogram (Ward's Method)", fontsize=16)
+dendrogram = sch.dendrogram(
+    sch.linkage(X_scaled, method='ward'),
+    no_labels=True,
+    color_threshold=0.7*max(sch.linkage(X_scaled, method='ward')[:,2])
+)
+plt.title("Dendrogram (Ward's Linkage Method)", fontsize=16)
 plt.ylabel("Euclidean Distance", fontsize=12)
-plt.xlabel("Index = 1, 2, 3, 4, ...", fontsize=12)
+plt.xlabel("Data Points", fontsize=12)
+plt.axhline(y=0.7*max(sch.linkage(X_scaled, method='ward')[:,2]), 
+            color='red', linestyle='--', alpha=0.7, label='Cut-off line')
+plt.legend()
 plt.tight_layout()
 plt.show()
+```
 
-Looking at the dendrogram we can see tigh clustering toward the bottom indictating possible homogenous groups in the dataset. The further and more spread merges suggest heteronormitive data.
-##### KMEANS
-from sklearn.cluster import KMeans
+The dendrogram shows tight clustering at lower levels, indicating homogeneous groups within the dataset. The more dispersed merges at higher levels suggest the presence of distinct customer segments.
 
-N_CLUSTERS = 2
-# Try clustering into n clusters
-kmeans = KMeans(n_clusters=N_CLUSTERS, random_state=42)
-kmeans_labels = kmeans.fit_predict(X_scaled)
+## Results and Analysis
 
-# Add to original data
-df_data['KMeans_Cluster'] = kmeans_labels
+### Silhouette Score Comparison
 
-##### H-Cluster
-from sklearn.cluster import AgglomerativeClustering
-
-# Agglomerative clustering (Euclidean, Ward)
-hc = AgglomerativeClustering(n_clusters=N_CLUSTERS, metric='euclidean', linkage='ward')
-hc_labels = hc.fit_predict(X_scaled)
-
-# Add to original data
-df_data['Hierarchical_Cluster'] = hc_labels
-
-#### PLOT 
-# Reduce dimensions for visualization
-pca = PCA(n_components=2)
-X_pca = pca.fit_transform(X_scaled)
-
-# Plot both clustering outputs side by side
-fig, axs = plt.subplots(1, 2, figsize=(14, 6))
-
-# KMeans
-sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=kmeans_labels, palette='Set2', ax=axs[0])
-axs[0].set_title("KMeans Clusters (PCA Projection)")
-
-# Hierarchical
-sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=hc_labels, palette='Set1', ax=axs[1])
-axs[1].set_title("Hierarchical Clusters (PCA Projection)")
-
-plt.tight_layout()
-plt.show()
-print(f'Number of clusters for KMeans and Hierarchical Clustering:  {N_CLUSTERS}')
-Here we can see with higher number of clusters the models still work but seemingly struggle with outlier cases. With lower clusters there is some noise where points are either overly grouped in 1 cluster or have to much overlap.
-### Results and Analysis
-#### **RESULTS HERE ARE BASED ON N_CLUSTERS FROM HYPERTUNING
+```python
 from sklearn.metrics import silhouette_score
 
-# KMeans Silhouette Score
-kmeans_silhouette = silhouette_score(X_scaled, kmeans_labels)
-print(f"KMeans Silhouette Score: {kmeans_silhouette:.4f}")
-
-# Hierarchical Clustering Silhouette Score
-hc_silhouette = silhouette_score(X_scaled, hc_labels)
-print(f"Hierarchical Clustering Silhouette Score: {hc_silhouette:.4f}")
-from sklearn.cluster import KMeans, AgglomerativeClustering
-from sklearn.metrics import silhouette_score
-import matplotlib.pyplot as plt
-
-sil_scores_kmeans = []
-sil_scores_hier = []
-
+# Compare clustering methods across different numbers of clusters
 cluster_range = range(2, 11)
+silhouette_scores_kmeans = []
+silhouette_scores_hierarchical = []
 
 for k in cluster_range:
     # KMeans
-    km = KMeans(n_clusters=k, random_state=42)
-    labels_km = km.fit_predict(X_scaled)
-    score_km = silhouette_score(X_scaled, labels_km)
-    sil_scores_kmeans.append(score_km)
+    kmeans_temp = KMeans(n_clusters=k, random_state=42)
+    kmeans_labels_temp = kmeans_temp.fit_predict(X_scaled)
+    sil_score_km = silhouette_score(X_scaled, kmeans_labels_temp)
+    silhouette_scores_kmeans.append(sil_score_km)
     
     # Hierarchical Clustering
-    hc = AgglomerativeClustering(n_clusters=k, metric='euclidean', linkage='ward')
-    labels_hc = hc.fit_predict(X_scaled)
-    score_hc = silhouette_score(X_scaled, labels_hc)
-    sil_scores_hier.append(score_hc)
+    hc_temp = AgglomerativeClustering(n_clusters=k, metric='euclidean', linkage='ward')
+    hc_labels_temp = hc_temp.fit_predict(X_scaled)
+    sil_score_hc = silhouette_score(X_scaled, hc_labels_temp)
+    silhouette_scores_hierarchical.append(sil_score_hc)
 
-# Plot both silhouette scores
-plt.figure(figsize=(10, 5))
-plt.plot(cluster_range, sil_scores_kmeans, marker='o', label='KMeans', color='blue')
-plt.plot(cluster_range, sil_scores_hier, marker='s', label='Hierarchical', color='green')
+# Visualization
+plt.figure(figsize=(10, 6))
+plt.plot(cluster_range, silhouette_scores_kmeans, marker='o', 
+         label='KMeans', linewidth=2, markersize=8)
+plt.plot(cluster_range, silhouette_scores_hierarchical, marker='s', 
+         label='Hierarchical', linewidth=2, markersize=8)
 
-plt.title("Silhouette Score vs Number of Clusters")
+plt.title("Silhouette Score Comparison")
 plt.xlabel("Number of Clusters")
 plt.ylabel("Silhouette Score")
 plt.legend()
-plt.grid(True)
+plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.show()
-### Conclusion
-From KMeans and Hierarchical clustering there have been different performance every time the model has run. This is because KMeans starts with randomly selected initial centroids, I have set a random_state and decomposition PCA to reduce this. Performance is typically around .5 Which is not tremendous but no terrible. Silhouette score is measured between -1 and 1, so the performance is in the upper quartile.
 
-Under a very low number of n_cluster = 2, Hierarchical clustering does very well, however at all clusters higher than n = 2, KMeans outperforms til the number of clusters creates data that is not usable.
+# Print optimal results
+optimal_k_kmeans = cluster_range[np.argmax(silhouette_scores_kmeans)]
+optimal_k_hierarchical = cluster_range[np.argmax(silhouette_scores_hierarchical)]
 
-I did attempt a log transformation, but performance only decreased so I ommited that from the notebook.
+print(f"Optimal clusters for KMeans: {optimal_k_kmeans} (Score: {max(silhouette_scores_kmeans):.4f})")
+print(f"Optimal clusters for Hierarchical: {optimal_k_hierarchical} (Score: {max(silhouette_scores_hierarchical):.4f})")
+```
 
-### Citation
-Cardoso, M. (2013). Wholesale customers [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5030X.
+### Performance Analysis
 
-https://www.kaggle.com/datasets/binovi/wholesale-customers-data-set/data
+**Key Findings:**
+- Silhouette scores for both methods range between 0.3-0.6, indicating moderate to good cluster separation
+- Hierarchical clustering performs exceptionally well with 2 clusters
+- KMeans shows more consistent performance across different cluster numbers
+- Both methods achieve reasonable clustering quality (scores > 0.5 indicate good cluster separation)
+
+## Conclusion
+
+This analysis successfully identified distinct customer segments in the wholesale dataset using both KMeans and Hierarchical clustering approaches. 
+
+**Main Insights:**
+1. **Optimal Cluster Number**: Both methods suggest 2-3 clusters provide the best balance of interpretability and cluster quality
+2. **Algorithm Performance**: Hierarchical clustering excels with fewer clusters (k=2), while KMeans maintains consistent performance across various cluster numbers
+3. **Customer Segments**: The analysis reveals distinct purchasing patterns, with clear correlations between grocery, dairy, and household product spending
+4. **Data Characteristics**: Most customers exhibit low to moderate spending patterns, with notable outliers representing high-value customer segments
+
+**Recommendations:**
+- Use 2-3 clusters for business applications to maintain interpretability
+- Consider Hierarchical clustering for simpler segmentation strategies
+- Apply KMeans when exploring different numbers of customer segments
+- Focus marketing strategies on the identified correlations between product categories
+
+**Limitations:**
+- PCA dimensionality reduction may obscure some cluster characteristics
+- Silhouette scores, while reasonable, suggest room for improvement in cluster separation
+- Categorical variables (Channel, Region) were excluded but might provide additional segmentation insights
+
+## Citation
+
+Cardoso, M. (2013). Wholesale customers [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5030X
+
+**Additional Data Source:** [Kaggle - Wholesale Customers Dataset](https://www.kaggle.com/datasets/binovi/wholesale-customers-data-set/data)
